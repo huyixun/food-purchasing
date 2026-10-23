@@ -1,0 +1,55 @@
+schema_version: 1
+request_id: 8af12d30-b9b8-44d7-8b29-9e24d53e7ce9
+created_at: "2026-10-23T10:52:30+08:00"
+updated_at: "2026-10-23T10:53:34+08:00"
+
+entry_type: full_pipeline
+stage_chain: [1, 2, 3]
+
+output_docx_path: 'D:/food-purchasing/docs/知味中央厨房-备料试点策划报告.docx'
+output_docx_user_specified: true
+
+current_stage: 2
+
+stages:
+  stage_0:
+    status: completed
+    completed_at: "2026-10-23T10:52:30+08:00"
+    decision: full_pipeline
+  stage_1:
+    status: completed
+    started_at: "2026-10-23T10:52:30+08:00"
+    completed_at: "2026-10-23T10:53:34+08:00"
+    output_path: "stage1/final_draft.md"
+    genre: "work-report"
+    expert_used: "work-report-expert"
+    route_tag: "expert_work_report"
+  stage_2:
+    status: pending
+    started_at: null
+    completed_at: null
+    route: null
+    html_sub: null
+    output_path: null
+    output_format: null
+    skills_invoked: []
+    design_tokens_path: null
+    fallback: false
+    fallback_reason: null
+  stage_3:
+    status: pending
+    started_at: null
+    completed_at: null
+    executor: null
+    input_format: null
+    output_path: null
+    skill_used: []
+    present_files_opened: false
+    fallback: false
+    fallback_reason: null
+
+consistency_check:
+  output_files_exist: null
+  stage_chain_complete: null
+  last_checked_at: null
+  errors: []
