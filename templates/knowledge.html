@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}知识库管理 · 备料助手{% endblock %}
+{% block nav_knowledge %}active{% endblock %}
+{% block content %}
+<h1>知识库管理</h1>
+
+<div class="panel">
+  <h2>上传制度文件</h2>
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+  <!-- multipart 表单：md 直接入库；pdf 由服务端 pypdf 提取文本后入库 -->
+  <form method="post" action="/admin/knowledge/upload" enctype="multipart/form-data" class="upload-form">
+    <input type="file" name="file" accept=".md,.markdown,.pdf" required>
+    <button class="btn btn-primary" type="submit">上传并入库</button>
+  </form>
+  <p class="hint">支持 .md / .pdf（文字版，扫描件不支持），≤5 MB。上传后自动切片并向量化，下一次提问即生效。</p>
+</div>
+
+<div class="panel">
+  <h2>已入库来源</h2>
+  {% if sources %}
+  <table class="table">
+    <thead>
+      <tr><th>文件名</th><th>切片数</th><th>嵌入通道</th><th>上传人</th><th>时间</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for s in sources %}
+      <tr>
+        <td>{{ s.filename }}</td>
+        <td>{{ s.chunk_count }}</td>
+        <td>{{ s.embed_channel }}</td>
+        <td>{{ s.created_by }}</td>
+        <td class="muted">{{ s.created_at[:19] }}</td>
+        <td>
+          <!-- 删除需二次确认；最后一个来源会被服务端拒绝 -->
+          <form method="post" action="/admin/knowledge/{{ s.id }}/delete"
+                onsubmit="return confirm('确定删除「{{ s.filename }}」？删除后相关切片立即退出检索。');">
+            <button class="btn btn-danger btn-sm" type="submit">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">暂无上传来源，检索仅使用内置样例（data/sample_knowledge.md）。</p>
+  {% endif %}
+</div>
+{% endblock %}

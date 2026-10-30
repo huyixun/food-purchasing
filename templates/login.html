@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登录 · 备料助手管理后台</title>
+  <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body class="login-body">
+  <div class="login-card">
+    <h1>备料助手<span class="brand-sub">管理后台</span></h1>
+    {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+    <!-- 服务端渲染表单：POST /admin/login，失败带错误信息重渲染 -->
+    <form method="post" action="/admin/login">
+      <label>工号
+        <input name="employee_no" autocomplete="username" required autofocus>
+      </label>
+      <label>密码
+        <input name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <button class="btn btn-primary btn-block" type="submit">登 录</button>
+    </form>
+    <p class="hint">首次启动的管理员初始密码见服务控制台或 data/.admin_credentials</p>
+  </div>
+</body>
+</html>

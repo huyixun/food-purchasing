@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block nav_dashboard %}active{% endblock %}
+{% block content %}
+<h1>总览</h1>
+<div class="cards">
+  <div class="card">
+    <div class="card-num">{{ stats.sources }}</div>
+    <div class="card-label">知识来源（后台上传）</div>
+  </div>
+  <div class="card">
+    <div class="card-num">{{ stats.conversations }}</div>
+    <div class="card-label">会话数</div>
+  </div>
+  <div class="card">
+    <div class="card-num">{{ stats.messages }}</div>
+    <div class="card-label">消息数</div>
+  </div>
+  <div class="card {% if stats.flagged > 0 %}card-warn{% endif %}">
+    <div class="card-num">{{ stats.flagged }}</div>
+    <div class="card-label">疑似违规（待复核）</div>
+  </div>
+</div>
+<p class="hint">员工问答入口：<a href="/" target="_blank">/</a>（员工无需登录即可使用聊天页）</p>
+{% endblock %}

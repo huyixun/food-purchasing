@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prep-assistant"
+version = "0.1.0"
+description = "中央厨房备料助手：份数→公斤换算、短保批次状态、交接待办"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+# 依赖统一维护在 requirements.txt，避免两处漂移
+dependencies = []
+
+[project.scripts]
+prep-assistant = "prep_assistant.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

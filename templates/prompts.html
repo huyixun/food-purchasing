@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}提示词模板 · 备料助手{% endblock %}
+{% block nav_prompts %}active{% endblock %}
+{% block content %}
+<h1>提示词模板管理</h1>
+
+{% if saved_version %}
+<div class="alert alert-ok">已保存并立即生效：版本 {{ saved_version }}（下一次提问即使用新模板）</div>
+{% endif %}
+
+<div class="panel">
+  <h2>当前生效模板
+    {% if active %}<span class="tag">版本 {{ active.version }}</span>
+    {% else %}<span class="tag tag-muted">出厂默认（尚无管理员修改记录）</span>{% endif %}
+  </h2>
+  <!-- 编辑框：有生效模板则载入，否则载入出厂默认，方便管理员在其上修改 -->
+  <form method="post" action="/admin/prompts/save">
+    <textarea name="content" rows="12" class="prompt-editor">{{ (active.content if active else default_prompt) }}</textarea>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">保存新版本并生效</button>
+    </div>
+  </form>
+  <p class="hint">保存即生效（问答服务每次提问都从数据库读取当前版本），无需重启。旧版本只增不删，可在下方历史中查看。</p>
+</div>
+
+<div class="panel">
+  <h2>历史版本</h2>
+  {% if history %}
+  <table class="table">
+    <thead><tr><th>版本</th><th>生效中</th><th>修改人</th><th>时间</th><th>内容预览</th></tr></thead>
+    <tbody>
+      {% for t in history %}
+      <tr>
+        <td>{{ t.version }}</td>
+        <td>{% if t.is_active %}<span class="tag">生效中</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td>{{ t.created_by }}</td>
+        <td class="muted">{{ t.created_at[:19] }}</td>
+        <td class="muted preview">{{ t.content[:60] }}{% if t.content|length > 60 %}…{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">暂无历史版本。</p>
+  {% endif %}
+</div>
+{% endblock %}

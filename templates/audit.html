@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}对话审计 · 备料助手{% endblock %}
+{% block nav_audit %}active{% endblock %}
+{% block content %}
+<h1>对话审计</h1>
+
+<!-- 筛选栏：员工 / 时间段 / 仅看违规，GET 提交可分享链接 -->
+<div class="panel filter-bar">
+  <form method="get" action="/admin/audit" class="filters">
+    <label>员工工号 <input name="employee_no" value="{{ filters.employee_no }}" placeholder="留空=全部"></label>
+    <label>从 <input type="date" name="date_from" value="{{ filters.date_from }}"></label>
+    <label>至 <input type="date" name="date_to" value="{{ filters.date_to }}"></label>
+    <label class="checkbox"><input type="checkbox" name="only_flagged" value="1" {% if filters.only_flagged %}checked{% endif %}> 仅看疑似违规</label>
+    <button class="btn btn-primary" type="submit">筛选</button>
+    <a class="btn-link" href="/admin/audit">清空</a>
+  </form>
+</div>
+
+{% if rows %}
+{% for r in rows %}
+<div class="panel conv {% if r.flagged %}flagged{% endif %}" id="msg-{{ r.id }}">
+  <div class="conv-head">
+    <span class="who">{{ r.employee_no }}</span>
+    <span class="muted">{{ r.created_at[:19] }}</span>
+    <span class="tag">{{ r.role }}</span>
+    {% if r.manual_flag %}<span class="tag tag-danger">人工认定违规</span>
+    {% elif r.rule_hits %}<span class="tag tag-warn">规则初筛疑似违规</span>{% endif %}
+  </div>
+
+  <div class="conv-q"><strong>问：</strong>{{ r.question }}</div>
+  {% if r.role == 'assistant' %}
+  <div class="conv-a"><strong>答：</strong>{{ r.content }}</div>
+  {% endif %}
+
+  {% if r.rule_hits %}
+  <div class="rule-hits">
+    <strong>命中规则：</strong>
+    {% for h in r.rule_hits %}
+    <div class="rule-hit">{{ h.label }}（{{ h.rule }}）：
+      {% for hit in h.hits %}<code>{{ hit }}</code>{% if not loop.last %}、{% endif %}{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if r.ai_review %}
+  <div class="ai-review">{{ r.ai_review }}</div>
+  {% endif %}
+
+  <div class="conv-actions">
+    {% if r.role == 'assistant' %}
+    <button class="btn btn-sm" onclick="aiReview({{ r.id }}, this)">AI 辅助归因</button>
+    {% endif %}
+    <button class="btn btn-sm {% if r.manual_flag %}btn-ok{% else %}btn-danger{% endif %}"
+            onclick="toggleFlag({{ r.id }}, {{ 'false' if r.manual_flag else 'true' }}, this)">
+      {{ '取消违规认定' if r.manual_flag else '认定违规' }}
+    </button>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<p class="muted">没有符合条件的记录。</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 认定/取消违规：POST JSON，成功后刷新页面让标记状态与统计一致
+function toggleFlag(messageId, flagged, btn) {
+  btn.disabled = true;
+  fetch('/admin/audit/' + messageId + '/flag', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ flagged: flagged })
+  }).then(function (resp) {
+    if (!resp.ok) { return resp.json().then(function (e) { alert(e.message || '操作失败'); }); }
+    location.reload();
+  }).catch(function () { alert('网络错误，请重试'); btn.disabled = false; });
+}
+
+// LLM 辅助归因：调接口后把归因文本就地插入当前卡片，不打断浏览
+function aiReview(messageId, btn) {
+  btn.disabled = true;
+  btn.textContent = '归因中…';
+  fetch('/admin/audit/' + messageId + '/ai-review', { method: 'POST' })
+    .then(function (resp) {
+      if (!resp.ok) { return resp.json().then(function (e) { throw new Error(e.message || '归因失败'); }); }
+      return resp.json();
+    })
+    .then(function (data) {
+      var div = document.createElement('div');
+      div.className = 'ai-review';
+      div.textContent = data.review;
+      btn.closest('.conv-actions').before(div);
+      btn.textContent = '已生成归因';
+    })
+    .catch(function (err) { alert(err.message); btn.disabled = false; btn.textContent = 'AI 辅助归因'; });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,25 @@
+# 运行时依赖
+# 技术栈尚未在需求评审中锁定（决策记录未涉及），以下为建议基线，写实施计划时可调整。
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pydantic>=2.9
+SQLAlchemy>=2.0
+alembic>=1.14
+PyYAML>=6.0
+httpx>=0.28
+
+# 阶段 1 裸问答原型（examples/rag_prototype.py）
+numpy>=1.26
+faiss-cpu>=1.9          # 向量索引；阶段 3 迁 pgvector
+rank-bm25>=0.2.2        # 稀疏检索通道
+jieba>=0.42.1           # 中文分词（BM25 与本地兜底嵌入共用）
+
+# 管理后台（阶段 3）
+PyJWT>=2.9              # 登录鉴权 JWT
+jinja2>=3.1             # 服务端渲染模板
+python-multipart>=0.0.9 # 文件上传表单
+pypdf>=5.0              # PDF 制度文件解析（文字版）
+
+# 开发与测试
+pytest>=8.3
+ruff>=0.8

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>备料助手 · 员工问答</title>
+<style>
+  /* 布局：左对话流，底部输入区；浅色主题 */
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, "Microsoft YaHei", sans-serif;
+         background: #f6f7f9; color: #1f2329; height: 100vh;
+         display: flex; flex-direction: column; }
+  header { padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5e7eb;
+           font-weight: 500; }
+  header small { color: #8a9099; font-weight: 400; margin-left: 8px; }
+  #chat { flex: 1; overflow-y: auto; padding: 20px; }
+  .msg { max-width: 78%; margin-bottom: 14px; padding: 10px 14px;
+         border-radius: 12px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+  .user { background: #d3e5fd; margin-left: auto; }
+  .bot  { background: #fff; border: 1px solid #e5e7eb; }
+  .status { color: #8a9099; font-size: 13px; margin-bottom: 10px; }
+  .status::after { content: "…"; animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: .2; } }
+  /* 引用区：每条回答下方，展示制度来源 */
+  .cites { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e5e7eb;
+           font-size: 12px; color: #5f6368; }
+  .cites li { margin-top: 4px; }
+  .cites code { background: #f1f3f5; padding: 1px 5px; border-radius: 4px; }
+  /* 错误条：显示后端返回的错误码 + 中文信息 */
+  #error { display: none; margin: 0 20px 10px; padding: 10px 14px;
+           background: #fcebeb; color: #a32d2d; border: 1px solid #f0c4c4;
+           border-radius: 8px; font-size: 13px; }
+  footer { display: flex; gap: 10px; padding: 14px 20px; background: #fff;
+           border-top: 1px solid #e5e7eb; }
+  #q { flex: 1; padding: 10px 12px; border: 1px solid #d0d3d9; border-radius: 8px;
+       font-size: 14px; resize: none; height: 44px; }
+  #send { padding: 0 22px; border: 0; border-radius: 8px; background: #185fa5;
+          color: #fff; font-size: 14px; cursor: pointer; }
+  #send:disabled { background: #b4c4d6; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<header>备料助手 · 员工问答 <small>回答以知识库条文为准；数量类问题请使用备料功能</small></header>
+<div id="chat"></div>
+<div id="error"></div>
+<footer>
+  <textarea id="q" placeholder="输入问题，Enter 发送，Shift+Enter 换行"></textarea>
+  <button id="send">发送</button>
+</footer>
+
+<script>
+/* ============================================================
+ * 备料助手员工问答前端（阶段 2 原型）
+ * 关键点：SSE over POST —— 原生 EventSource 只支持 GET，
+ * 所以这里用 fetch + ReadableStream 手工解析 SSE 帧。
+ * ============================================================ */
+
+const chatEl = document.getElementById("chat");
+const qEl = document.getElementById("q");
+const sendBtn = document.getElementById("send");
+const errorEl = document.getElementById("error");
+
+let sessionId = localStorage.getItem("prep_session_id") || null; // 会话延续
+let busy = false; // 流式期间禁止重复发送
+
+function addBubble(role, text) {
+  const div = document.createElement("div");
+  div.className = "msg " + (role === "user" ? "user" : "bot");
+  div.textContent = text;
+  chatEl.appendChild(div);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  return div;
+}
+
+function showError(code, message) {
+  errorEl.style.display = "block";
+  errorEl.textContent = "出错了 [" + code + "]：" + message;
+}
+
+function hideError() { errorEl.style.display = "none"; }
+
+/* 解析一帧 SSE：事件名 + data JSON，分发到对应处理 */
+function handleEvent(raw, bubble, state) {
+  let event = "message", data = "";
+  for (const line of raw.split("\n")) {
+    if (line.startsWith("event:")) event = line.slice(6).trim();
+    else if (line.startsWith("data:")) data += line.slice(5).trim();
+  }
+  if (!data) return;
+  let payload;
+  try { payload = JSON.parse(data); } catch (e) { return; }
+
+  switch (event) {
+    case "meta": // 首个事件：记住 session_id，后续请求带上
+      sessionId = payload.session_id;
+      localStorage.setItem("prep_session_id", sessionId);
+      break;
+    case "status": // 检索/生成阶段提示
+      state.statusEl.textContent = payload.text;
+      break;
+    case "delta": // 增量文本 → 打字机效果
+      state.statusEl.remove(); state.statusEl = null;
+      bubble.textContent += payload.content;
+      chatEl.scrollTop = chatEl.scrollHeight;
+      break;
+    case "citations": // 引用：文件名 + 片段 + 融合得分
+      state.citations = payload.items || [];
+      break;
+    case "done": // 正常结束：渲染引用区
+      if (state.statusEl) state.statusEl.remove();
+      if (state.citations && state.citations.length) renderCites(bubble, state.citations);
+      break;
+    case "error": // 流中出错：展示后端的错误码与中文信息
+      if (state.statusEl) state.statusEl.remove();
+      showError(payload.code, payload.message || "未知错误");
+      if (!bubble.textContent) bubble.remove();
+      break;
+  }
+}
+
+function renderCites(bubble, items) {
+  const box = document.createElement("div");
+  box.className = "cites";
+  box.innerHTML = "依据条文：";
+  const ol = document.createElement("ol");
+  for (const c of items) {
+    const li = document.createElement("li");
+    const code = document.createElement("code");
+    code.textContent = c.source;
+    li.appendChild(code);
+    li.appendChild(document.createTextNode(" " + c.snippet + "…（相关度 " + c.score + "）"));
+    ol.appendChild(li);
+  }
+  box.appendChild(ol);
+  bubble.appendChild(box);
+}
+
+/* 主流程：POST /api/chat 并逐帧消费 SSE 流 */
+async function ask(question) {
+  busy = true; sendBtn.disabled = true; hideError();
+  addBubble("user", question);
+  const bubble = addBubble("bot", "");
+  const statusEl = document.createElement("div");
+  statusEl.className = "status";
+  statusEl.textContent = "正在检索制度";
+  bubble.before(statusEl); // 状态条独立于气泡，避免打字机时被覆盖
+
+  const state = { statusEl, citations: null };
+  try {
+    const resp = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Employee-No": "demo" },
+      body: JSON.stringify({ session_id: sessionId, question: question }),
+    });
+
+    /* 非流式失败：后端返回 JSON 错误体（422/404/429/503...） */
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ code: "INTERNAL_ERROR", message: "服务无响应" }));
+      showError(err.code, err.message);
+      statusEl.remove(); bubble.remove();
+      return;
+    }
+
+    /* 流式成功：按空行切帧解析 */
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buffer.indexOf("\n\n")) >= 0) {
+        const frame = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+        handleEvent(frame, bubble, state);
+      }
+    }
+  } catch (e) {
+    showError("NETWORK_ERROR", "无法连接服务，请检查网络后重试");
+    if (state.statusEl) state.statusEl.remove();
+    if (!bubble.textContent) bubble.remove();
+  } finally {
+    busy = false; sendBtn.disabled = false; qEl.focus();
+  }
+}
+
+sendBtn.addEventListener("click", () => {
+  const q = qEl.value.trim();
+  if (!q || busy) return;
+  qEl.value = ""; ask(q);
+});
+qEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendBtn.click(); }
+});
+
+/* 刷新页面后恢复历史会话（GET /api/chat/{session_id}/history） */
+(async function restore() {
+  if (!sessionId) return;
+  const resp = await fetch("/api/chat/" + sessionId + "/history",
+                           { headers: { "X-Employee-No": "demo" } });
+  if (!resp.ok) { localStorage.removeItem("prep_session_id"); sessionId = null; return; }
+  const data = await resp.json();
+  for (const m of data.messages) {
+    const bubble = addBubble(m.role, m.content);
+    if (m.citations && m.citations.length) renderCites(bubble, m.citations);
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+# 备料助手默认配置（非机密）
+# 数值口径来自 docs/decision-log.md 与访谈事实；改动需同步更新决策记录。
+
+app:
+  name: prep-assistant
+  timezone: Asia/Shanghai
+
+suggestion:
+  generate_before: "06:30"        # 早班到岗前出单
+  micro_adjust_threshold: 0.05    # ±5% 内算微调，超出算改判
+
+data:
+  refresh_interval_minutes: 15    # 外部数据刷新周期
+  stale_after_cycles: 1           # 超过一个周期即标「待刷新」
+  snapshot_on_outage: true        # 接口中断时沿用带时间戳的只读快照
+
+yield:
+  deviation_threshold: 0.20       # 实测出成率偏离基准 ±20% 转人工
+  fallback_factor: 1.0            # 无实测时按基准，并标注「按基准」
+
+pilot:
+  category: null                  # 首发品类待定（决策记录·唯一待定项）
+  scope:
+    - 需求合并
+    - 备料
+    - 加工
+
+writeback:
+  enabled: false                  # 默认关闭，须签发「回写能力」后开启
+  require_signed_capability: true
+  require_per_record_confirmation: true
+  writable_fields:                # 仅执行结果字段
+    - prep_confirmed_kg
+    - batch_process_status
+    - handover_owner
+  forbidden_fields:               # 永久拒写，配置不可覆盖
+    - purchase_order
+    - shelf_life_expiry
+    - recipe_version
+    - qc_release
+
+audit:
+  retention_days: 730             # 默认 ≥2 年
+  append_only: true
+  bitemporal: true                # 业务发生时间与写入时间分开存

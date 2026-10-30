@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}备料助手管理后台{% endblock %}</title>
+  <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body class="admin-body">
+  <!-- 侧边栏：SaaS 布局的骨架，所有后台页面共用 -->
+  <aside class="sidebar">
+    <div class="brand">备料助手<span class="brand-sub">管理后台</span></div>
+    <nav>
+      <a href="/admin" class="nav-item {% block nav_dashboard %}{% endblock %}">📊 总览</a>
+      <a href="/admin/knowledge" class="nav-item {% block nav_knowledge %}{% endblock %}">📚 知识库</a>
+      <a href="/admin/prompts" class="nav-item {% block nav_prompts %}{% endblock %}">✏️ 提示词</a>
+      <a href="/admin/audit" class="nav-item {% block nav_audit %}{% endblock %}">🔍 对话审计</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="whoami">{{ user.employee_no }}（管理员）</div>
+      <form method="post" action="/admin/logout">
+        <button class="btn-link" type="submit">退出登录</button>
+      </form>
+    </div>
+  </aside>
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

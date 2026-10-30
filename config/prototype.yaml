@@ -1,0 +1,34 @@
+# 裸问答原型配置（阶段 1）
+# 管理员改这里即可切换供应商；密钥一律走环境变量，禁止写进本文件。
+
+llm:
+  # 任意 OpenAI 兼容地址均可：DeepSeek / 通义 / 智谱 / 本地 vLLM 等
+  base_url: https://api.deepseek.com/v1
+  api_key_env: DEEPSEEK_API_KEY   # 从该环境变量读密钥
+  chat_model: deepseek-chat
+  embedding_model: ""             # 留空 = 用本地占位向量化（离线可跑）；填模型名则走 API
+  temperature: 0.2
+  timeout_seconds: 60
+
+retrieval:
+  chunk_size: 500                 # 切片字数
+  top_k: 3                        # 混合检索取前几条
+  dense_weight: 0.5               # 向量检索权重
+  bm25_weight: 0.5                # BM25 权重
+
+source: data/sample_knowledge.md
+cache_dir: data/.rag_cache
+
+# 员工问答（阶段 2）
+chat:
+  db_path: data/chat.db          # SQLite 库文件（表见 src/prep_assistant/infra/db.py）
+  history_rounds: 7              # 每次请求携带最近 7 轮历史
+  rate_limit:
+    max_requests: 10             # 同一会话窗口内最多提问次数
+    window_seconds: 60
+
+# 管理后台（阶段 3）
+admin:
+  jwt_hours: 12                  # 登录会话有效期（小时）
+  allow_delete_last_source: false  # 是否允许删除最后一个知识来源（默认禁止，防问答开天窗）
+

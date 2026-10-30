@@ -1,0 +1,50 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# ---- 测试与检查缓存 ----
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ---- 密钥与环境 ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# ---- 编辑器与系统 ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Office 临时锁文件 ----
+~$*
+
+# ---- 生成物：流水线产物不进版本库 ----
+output/
+
+# ---- 本地数据（样例数据可提交，真实数据不可） ----
+data/*.csv
+data/*.xlsx
+data/*.db
+data/*.db-journal
+!data/sample_*.md
+data/.rag_cache/
+data/.jwt_secret          # JWT 签名密钥，绝不进版本库
+data/.admin_credentials   # 管理员初始密码，绝不进版本库
+data/knowledge/           # 管理员上传的制度文件
