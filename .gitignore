@@ -45,6 +45,9 @@ data/*.db
 data/*.db-journal
 !data/sample_*.md
 data/.rag_cache/
-data/.jwt_secret          # JWT 签名密钥，绝不进版本库
-data/.admin_credentials   # 管理员初始密码，绝不进版本库
-data/knowledge/           # 管理员上传的制度文件
+data/knowledge/
+# 密钥类文件绝不进版本库（注意：gitignore 不支持行尾注释，注释必须独占一行）
+data/.jwt_secret
+data/.admin_credentials
+data/.agent_secret
+data/tmp_*.db

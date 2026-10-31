@@ -17,9 +17,11 @@ from fastapi.staticfiles import StaticFiles
 
 from prep_assistant.api.errors import AppError, error_body
 from prep_assistant.api.routes.admin import router as admin_router
+from prep_assistant.api.routes.agent import router as agent_router
 from prep_assistant.api.routes.auth import router as auth_router
 from prep_assistant.api.routes.chat import RateLimiter, router as chat_router
 from prep_assistant.infra import db as database
+from prep_assistant.infra import agent_store
 from prep_assistant.infra.config import REPO_ROOT, load_config
 from prep_assistant.infra.security import seed_users
 
@@ -41,6 +43,9 @@ def create_app(db_path: str | None = None) -> FastAPI:
         conn = database.connect(app.state.db_path)
         database.init_schema(conn)
         seed_users(conn)
+        # 演示批次仅在原型期播种（config 里 agent.seed_demo_batches=true），生产关掉
+        if cfg.get("agent", {}).get("seed_demo_batches"):
+            agent_store.seed_demo_batches(conn)
         conn.close()
         yield
 
@@ -82,6 +87,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=REPO_ROOT / "static"), name="static")
 
     app.include_router(chat_router)
+    app.include_router(agent_router)
     app.include_router(auth_router)
     app.include_router(admin_router)
     return app

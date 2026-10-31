@@ -1,6 +1,35 @@
 # 接口说明
 
-> 状态：员工问答（阶段 2）与管理后台（阶段 3）**已实现**；其余仍为规划草案。
+> 状态：员工问答（阶段 2）、管理后台（阶段 3）、智能体执行循环（阶段 4b）**已实现**；其余仍为规划草案。
+
+## 已实现（阶段 4b：Agent Harness 执行循环）
+
+| 接口 | 方法 | 说明 |
+|---|---|---|
+| `/api/agent/ask` | POST | 自主决策入口，**SSE 流式**。事件序：`meta → round* → tool* → draft_preview? → answer* → done`；流内错误发 `event: error` |
+| `/api/agent/draft/{action_id}/confirm` | POST | 员工确认草案（body: `{session_id}`）→ 真正执行 create_suggestion_draft；重复确认 409、跨会话 404、超时 410 |
+| `/api/agent/draft/{action_id}/reject` | POST | 员工拒绝草案，不执行、不留单据 |
+
+要点：
+
+- **上限 5 轮**模型决策（`MAX_ROUNDS`），超限强制收口（`stop_reason=round_limit`）。
+- **create_suggestion_draft 强制中断**：预校验（四道闸，不消费凭证）→ 通过则挂起
+  `agent_pending_actions` 并推 `draft_preview`，员工确认后才执行（确认时再过完整闸门）。
+- **轮次日志**：每轮模型决策与每次工具执行落 `agent_round_logs`（工具名/参数/耗时/
+  结果摘要），供阶段 5 离线分析。
+- `stop_reason`：`answered` / `no_content` / `round_limit` / `awaiting_confirmation`。
+- 设计与轨迹示例见 `docs/agent-loop.md`；工具与凭证链见 `docs/agent-tooling-design.md`。
+
+## 已实现（阶段 4：智能体工具层）
+
+设计说明见 `docs/agent-tooling-design.md`。要点：
+
+- 注册给模型的工具共 **8 个**，分 T0 只读 / T1 校验（签凭证）/ T2 草案三层；
+  `confirm` / `accept` / `writeback` / `isolate` 四个动作**不注册**，只由前端按钮直调。
+- 顺序约束由**凭证链**强制（HMAC + 会话归属 + 10 分钟 TTL + 一次性 + 参数哈希比对），
+  不靠提示词。伪造凭证 `MISSING_PREREQUISITE`；改数 `PROVENANCE_MISMATCH`。
+- `traces` 是完整工具轨迹，供审计与前端渲染建议卡片（数值以 `tool_result` 为准，不取模型文本）。
+- 本入口与 `/api/chat` 共用 `session_id` 与 `conversations`/`messages` 表，可在同一会话里混用。
 
 ## 已实现（阶段 2：员工问答）
 

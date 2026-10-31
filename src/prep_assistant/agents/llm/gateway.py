@@ -133,3 +133,58 @@ def stream_llm(messages: list[dict], cfg: dict) -> Iterator[str]:
     step = 6  # 每片 6 个字符，接近真人打字节奏
     for i in range(0, len(text), step):
         yield text[i:i + step]
+
+
+def chat_with_tools(messages: list[dict], cfg: dict, tools: list[dict]) -> dict:
+    """带工具的一轮对话（非流式）。
+
+    返回 {"content": str | None, "tool_calls": [{"id", "name", "arguments"}]}。
+
+    为什么这里不用流式：工具调用需要完整的 arguments JSON 才能校验收发，
+    流式拼 JSON 会引入一类难查的截断错误。折中方案是——工具循环走非流式，
+    最后一轮的回答再按片推送给前端（见 agents/orchestrator.py 的说明）。
+    """
+    llm = cfg["llm"]
+    url = llm["base_url"].rstrip("/") + "/chat/completions"
+    payload = {
+        "model": llm["chat_model"],
+        "messages": messages,
+        "temperature": llm.get("temperature", 0.2),
+        "stream": False,
+        "tools": tools,
+        "tool_choice": "auto",
+    }
+    try:
+        resp = httpx.post(
+            url, json=payload, headers=_headers(cfg),
+            timeout=llm.get("timeout_seconds", 60),
+        )
+        resp.raise_for_status()
+    except httpx.TimeoutException as exc:
+        raise LLMTimeoutError("生成超时，请稍后重试") from exc
+    except httpx.HTTPStatusError as exc:
+        raise LLMUnavailableError(
+            f"供应商返回 {exc.response.status_code}，请检查 base_url / model / 密钥"
+        ) from exc
+    except httpx.HTTPError as exc:
+        raise LLMUnavailableError(f"无法连接大模型服务：{exc}") from exc
+
+    try:
+        message = resp.json()["choices"][0]["message"]
+    except (KeyError, IndexError, ValueError) as exc:
+        raise LLMUnavailableError("供应商响应结构异常，无法解析工具调用") from exc
+
+    calls = []
+    for item in message.get("tool_calls") or []:
+        fn = item.get("function") or {}
+        raw_args = fn.get("arguments") or "{}"
+        try:
+            parsed = json.loads(raw_args)
+        except json.JSONDecodeError:
+            parsed = {"__malformed__": raw_args}  # 交给工具层报 MISSING_FIELDS，不吞掉
+        calls.append({
+            "id": item.get("id") or f"call_{len(calls)}",
+            "name": fn.get("name", ""),
+            "arguments": parsed,
+        })
+    return {"content": message.get("content"), "tool_calls": calls}

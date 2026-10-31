@@ -32,3 +32,9 @@ admin:
   jwt_hours: 12                  # 登录会话有效期（小时）
   allow_delete_last_source: false  # 是否允许删除最后一个知识来源（默认禁止，防问答开天窗）
 
+# 智能体（阶段 4）
+agent:
+  max_tool_calls: 6              # 单轮工具调用预算（与 agents/orchestrator.py 同值，仅作展示）
+  token_ttl_seconds: 600         # 校验凭证有效期；过期必须重新校验
+  seed_demo_batches: true        # 原型期播种 4 个演示批次；生产必须改 false
+

@@ -27,6 +27,12 @@ pip install -e .
 # 查看命令行入口与当前规格摘要
 python -m prep_assistant.main --help
 
+# 起服务：聊天页 http://127.0.0.1:8000/ ，管理后台 /admin/login
+python -m prep_assistant.main serve
+
+# 智能体工具层演示（不需要 API 密钥，直接看四道闸怎么拦人）
+python examples/agent_demo.py
+
 # 跑测试
 pytest -q
 ```
@@ -38,7 +44,8 @@ pytest -q
 | `docs/备料助手-一页纸需求清单.md` | 需求基线（v1.0，11 项决策冻结） |
 | `docs/decision-log.md` | 决策记录与依据（B1–B6） |
 | `docs/design.md` | 架构分层与关键约束 |
-| `docs/api.md` | 接口与能力清单（规划中） |
+| `docs/agent-tooling-design.md` | 智能体工具层：8 个工具、凭证链、系统提示词铁律 |
+| `docs/api.md` | 接口说明（阶段 2/3/4 已实现） |
 | `docs/discovery-report.md` | 业务发现报告（36 条访谈事实） |
 | `docs/prd-agent-assistant-capability-a.md` | 早期 PRD（**仅作参考**，部分结论已被决策推翻） |
 

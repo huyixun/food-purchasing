@@ -26,6 +26,10 @@ ERRORS: dict[str, tuple[int, str]] = {
     "FILE_TOO_LARGE": (422, "文件超过 5 MB 上限"),
     "FILE_EMPTY": (422, "文件内容为空，或 PDF 中未提取到文字（扫描件需要 OCR，本期不支持）"),
     "LAST_SOURCE": (400, "至少保留一个知识来源，不能删除最后一个"),
+    # ── 智能体确认流（create_suggestion_draft 强制中断）──
+    "ACTION_NOT_FOUND": (404, "确认请求不存在或已失效"),
+    "ACTION_STATE_CONFLICT": (409, "该请求已处理过，请勿重复操作"),
+    "ACTION_EXPIRED": (410, "确认已超时（10 分钟），请重新发起"),
 }
 
 

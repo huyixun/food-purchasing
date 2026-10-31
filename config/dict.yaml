@@ -1,0 +1,30 @@
+# 主数据字典（非机密部分；出成率与配方明细属商业秘密，生产环境应由运维注入，不入代码库）
+# 版本受控（决策 B4 / f24）：只增不改，改口径必须新增版本号并写生效日期。
+dict_version: dict-2026.10.31
+effective_from: 2026-10-31
+
+# 品类字典：code 为内部统一编码（决策 B3.1 自建主数据），外部编码由映射层对应，本文件只存内部码。
+materials:
+  - code: M-CHK-001
+    name: 鸡胸肉
+    category: 禽类
+    denominator_g: 150          # 1 份成品所需净料克数（标准份分母）
+    base_yield: 0.97            # 字典基准出成率（历史均值）
+    process_hours: 2.0          # 该品类从解冻到加工的占用时长
+  - code: M-EGG-002
+    name: 鸡蛋
+    category: 蛋类
+    denominator_g: 120
+    base_yield: 0.99
+    process_hours: 1.0
+  - code: M-VEG-003
+    name: 时令蔬菜
+    category: 蔬菜
+    denominator_g: 100
+    base_yield: 0.85
+    process_hours: 1.5
+
+# 效期判定参数（F3）
+shelf_life:
+  buffer_hours: 1.5             # 加工窗口外的安全缓冲
+  warn_ratio: 0.8               # 剩余效期 ≥ 需求×该比例 → warn，以下 → block
