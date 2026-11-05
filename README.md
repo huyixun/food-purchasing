@@ -61,24 +61,40 @@ pytest -q
 |---|---|
 | `docs/备料助手-一页纸需求清单.md` | 需求基线（v1.0，11 项决策冻结） |
 | `docs/decision-log.md` | 决策记录与依据（B1–B6） |
-| `docs/design.md` | 架构分层与关键约束 |
+| `docs/architecture.md` | 四层架构、数据流与部署形态 |
+| `docs/design.md` | 模块设计与关键约束 |
 | `docs/agent-tooling-design.md` | 智能体工具层：8 个工具、凭证链、系统提示词铁律 |
+| `docs/agent-loop.md` | Harness 执行循环与三条典型对话轨迹 |
 | `docs/api.md` | 接口说明（阶段 2/3/4 已实现） |
 | `docs/discovery-report.md` | 业务发现报告（36 条访谈事实） |
+| `docs/go-live-checklist.md` | 上线前 25 项检查（负责人 / 验证方法 / 通过标准）与 7 个阻断项 |
+| `docs/demo-script.md` | 12 分钟演示脚本：六幕节奏、离线版、翻车预案 |
+| `docs/flow-annotation-report.html` | 备料流程图标注报告，浏览器直接打开 |
 | `docs/prd-agent-assistant-capability-a.md` | 早期 PRD（**仅作参考**，部分结论已被决策推翻） |
 
 ## 目录结构
 
 ```
 .
-├── src/prep_assistant/   # 源码：main 入口、core 业务、utils 工具
-├── tests/                # 测试，结构与 src 对应
-├── docs/                 # 需求、设计、接口、访谈材料
-├── examples/             # 可运行示例
-├── scripts/              # 构建与部署脚本
-├── config/               # 非机密默认配置
-├── data/                 # 样例数据（小文件）
+├── src/prep_assistant/   # 源码：agents（RAG / 工具 / Harness）、api、core、infra、utils
+├── tests/                # 62 条自动化测试，结构与 src 对应
+├── eval/                 # 评测用例集（30 条：制度 / 工具 / 违规 / 多轮）
+├── docs/                 # 需求、决策、架构、工具设计、上线与演示材料
+├── examples/             # 可运行示例，含离线闸门演示
+├── scripts/              # 构建 / 部署脚本、演示前自检
+├── static/ · templates/  # 员工聊天页与管理后台页面
+├── config/               # 非机密配置与主数据字典
+├── data/                 # 样例知识与本地 SQLite（不入库）
 └── .github/              # CI、Issue / PR 模板
+```
+
+## 持续集成
+
+`.github/workflows/ci.yml` 在 push 与 PR 时执行两步，任一失败即阻断合并：
+
+```bash
+ruff check .     # 静态检查（E/F/I/UP/B，行宽 100）
+pytest -q        # 62 条测试
 ```
 
 ## 许可证
