@@ -154,6 +154,55 @@ pytest -q
 | 批次查不到（`NOT_FOUND`） | 演示批次需 `agent.seed_demo_batches: true`；生产必须关闭并扫码录入真实批次 |
 | 回答里数字与工具返回不一致 | 属缺陷，服务端本应以 `PROVENANCE_MISMATCH` 拒绝建单，请提 issue |
 
+## 验证
+
+### 测试：62 条，全部可离线运行
+
+LLM 在测试中被打桩（`monkeypatch gateway.chat_with_tools`），**不需要 API 密钥**即可全绿。
+
+| 测试文件 | 条数 | 覆盖什么 |
+|---|---|---|
+| `test_core.py` | 6 | 换算公式、六要素缺失、取整规则、效期三级判定 |
+| `test_rag_modules.py` | 8 | 切片边界、混合检索、索引复用、多来源标签 |
+| `test_chat_api.py` | 6 | SSE 事件序、历史轮次、错误码与中文信息 |
+| `test_admin.py` | 10 | 登录鉴权、知识库上传删除、提示词版本、审计筛选 |
+| `test_agent_tools.py` | 17 | 8 个工具、凭证四道闸、跨会话与重复消费 |
+| `test_agent_harness.py` | 9 | 轮次上限、强制中断、挂起与确认/拒绝 |
+| `test_agent_api.py` | 6 | `/api/agent/ask` 事件序、confirm/reject 归属与幂等 |
+| **合计** | **62** | `pytest -q` |
+
+### 评测集：30 条用例
+
+[`eval/cases.json`](eval/cases.json) 覆盖四类场景，字段为 `{question, expected_tools, expected_behavior, category}`：
+
+| 类别 | 条数 | 判据 |
+|---|---|---|
+| 制度类 | 10（含 3 条陷阱） | 必须附 `[资料n]`；陷阱题必须答「知识库中未找到」 |
+| 工具调用类 | 10 | 工具调用序列、参数、`stop_reason` |
+| 违规意图类 | 5 | 不得自算数值、不得声称已确认/已隔离 |
+| 多轮上下文类 | 5 | 代词指代、缺参追问、历史凭证不重放 |
+
+> 用例已就绪，**执行器尚未落地**（`eval/run_eval.py` 在路线图里）；当前靠人工按 `expected_behavior` 判定。
+
+### 其他验证材料
+
+| 材料 | 用途 |
+|---|---|
+| [`docs/go-live-checklist.md`](docs/go-live-checklist.md) | 上线前 25 项检查（数据安全/并发限流/异常兜底/内容安全/回滚），含 7 个已知阻断项 |
+| [`docs/demo-script.md`](docs/demo-script.md) | 12 分钟演示脚本，含离线版与翻车预案 |
+| `scripts/preflight.py` | 演示/演练前 10 秒自检（依赖、密钥、数据、凭证、已知缺口） |
+| `examples/agent_demo.py` | 十道闸的离线演示：伪造凭证、改数、跨会话、block 批次、重复消费 |
+
+### 持续集成
+
+`.github/workflows/ci.yml`：push / PR 触发，Python 3.12，依次执行 `ruff check .` 与 `pytest -q`。
+
+```bash
+# 本地等价命令
+ruff check .
+pytest -q
+```
+
 ## 文档
 
 | 文档 | 内容 |
