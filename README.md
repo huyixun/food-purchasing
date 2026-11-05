@@ -17,6 +17,42 @@
 - 不由模型修改效期或放行食品，异常批次只能由质量人员隔离
 - 不覆盖原记录——所有更正只能追加
 
+## 架构
+
+```mermaid
+flowchart TB
+  subgraph ACCESS["接入层"]
+    UI["员工聊天页 /"]
+    ADMIN["管理后台 /admin"]
+  end
+
+  subgraph ORCH["编排层"]
+    H["Harness 循环<br/>决策 → 工具 → 回填，上限 5 轮"]
+  end
+
+  subgraph CAP["能力层"]
+    T["8 个工具<br/>T0 只读 · T1 校验签凭证 · T2 草案"]
+    CORE["规则内核<br/>换算 F1 · 效期判定 F3"]
+    RAG["混合检索<br/>BM25 + FAISS"]
+  end
+
+  LLM["LLM 网关<br/>OpenAI 兼容，可换供应商"]
+  DB[("SQLite<br/>批次 · 凭证 · 草案 · 轮次日志")]
+
+  UI --> H
+  ADMIN --> DB
+  H <-->|"function calling"| T
+  H <--> LLM
+  T --> CORE
+  T --> RAG
+  CORE --> DB
+  RAG --> DB
+```
+
+读图要点：模型只活在 `Harness ↔ LLM` 这条文字链路上。凡是数值，都由工具层调用规则内核算出后回填，模型只负责复述，**不参与任何乘除、取整或单位换算**。
+
+四个人类专属动作——确认草案、接手交接、回写、隔离批次——**不在工具清单里**（图中无连线），模型无法调用，只能引导用户本人操作。
+
 ## 安装
 
 ```bash
