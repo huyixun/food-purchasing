@@ -96,7 +96,3 @@ pytest -q
 ruff check .     # 静态检查（E/F/I/UP/B，行宽 100）
 pytest -q        # 62 条测试
 ```
-
-## 许可证
-
-MIT，见 `LICENSE`。若不打算开源，删除该文件并在 `README` 注明「内部项目，保留所有权利」。
