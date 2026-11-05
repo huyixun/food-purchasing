@@ -42,6 +42,63 @@
 | 回写 outbox（仅执行结果字段） | 规格 | — | `core/writeback.py` |
 | T3 四个办公动作页面 | 未做 | — | 按设计不进模型上下文 |
 
+## 架构
+
+```mermaid
+flowchart TB
+    subgraph L1[交互层]
+        A1[员工聊天页<br/>单页 HTML + SSE]
+        A2[管理后台<br/>Jinja2 SSR]
+        A3[Agent API<br/>POST /api/agent/ask]
+    end
+    subgraph L2[智能体层]
+        B1[Harness 编排<br/>≤5 轮决策]
+        B2[8 个工具<br/>T0 只读 / T1 校验 / T2 草案]
+        B3[凭证链<br/>HMAC·会话·TTL·一次性]
+    end
+    subgraph L3[确定性内核]
+        C1[换算 conversion]
+        C2[效期 shelf_life]
+        C3[字典 masterdata]
+    end
+    subgraph L4[基础设施]
+        D1[(SQLite 14 表)]
+        D2[混合检索<br/>FAISS + BM25]
+        D3[配置与字典版本]
+    end
+    A1 --> B1
+    A3 --> B1
+    B1 --> B2
+    B2 --> B3
+    B2 --> C1
+    B2 --> C2
+    C1 --> C3
+    B1 --> D1
+    B2 --> D1
+    B1 --> D2
+    C3 --> D3
+    A2 --> D1
+    A2 --> D2
+```
+
+| 层 | 职责 | 关键模块 | 为什么单独成层 |
+|---|---|---|---|
+| 交互层 | 对话、后台运营、审计查看 | `static/chat.html`、`templates/*.html` | 前端只渲染 `tool_result` 里的数值，不接收模型自报的数字 |
+| 智能体层 | 决策、调工具、编排轮次 | `agents/harness.py`、`tools/*` | 护栏必须可审计，所以不引入框架的状态机黑盒 |
+| 确定性内核 | 换算、效期、字典 | `core/*.py` | 纯函数、不读时钟、不调模型，可逐位重放 |
+| 基础设施 | 存储、检索、版本 | `infra/*`、`data/*.db` | 字典与提示词版本只增不改，保证历史可重建 |
+
+### 三条关键设计
+
+**① 数值链路禁止模型参与。**
+`49.0 kg` 来自 `份数 × 标准份分母 ÷ 1000 ÷ 实测出成率` 的确定性计算，向上取整到 0.1kg。模型只负责把工具返回值原样转述；改写一个数字，服务端会以 `PROVENANCE_MISMATCH` 拒绝建单。
+
+**② 写操作靠凭证链，不靠提示词。**
+模型调 `create_suggestion_draft` 时必须携带本会话签发的 `run_id` 与 `risk_id`，四道闸依次校验：HMAC 签名 → 会话归属 → 10 分钟 TTL → 一次性消费，并用 `params_hash` 逐位比对参数。提示词铁律只是第三层防御，真正拦住"跳过校验"的是服务端。
+
+**③ 每一步都留痕，事后可重建。**
+每轮模型决策与每次工具执行写入 `agent_round_logs`（工具名 / 参数 / 耗时 / 结果摘要），配合字典版本与提示词版本，能回答"这个数是谁在什么时候、按哪版规则算的"。
+
 ## 安装
 
 ```bash
