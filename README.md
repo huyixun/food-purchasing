@@ -99,30 +99,60 @@ flowchart TB
 **③ 每一步都留痕，事后可重建。**
 每轮模型决策与每次工具执行写入 `agent_round_logs`（工具名 / 参数 / 耗时 / 结果摘要），配合字典版本与提示词版本，能回答"这个数是谁在什么时候、按哪版规则算的"。
 
-## 安装
+## 快速开始
+
+### 1. 安装
 
 ```bash
+git clone <repo-url> && cd food-purchasing
+
 python -m venv .venv
-source .venv/Scripts/activate     # Windows Git Bash；PowerShell 用 .venv\Scripts\Activate.ps1
+source .venv/Scripts/activate      # Windows Git Bash
+# PowerShell: .venv\Scripts\Activate.ps1 ；macOS/Linux: source .venv/bin/activate
+
 pip install -r requirements.txt
 pip install -e .
 ```
 
-## 运行
+> 跳过 `pip install -e .` 也能跑，但要用 `PYTHONPATH=src python -m ...` 前缀。`pytest` 已在 `pyproject.toml` 里配好 `pythonpath = ["src"]`。
+
+### 2. 四个入口
+
+| 入口 | 命令 / 地址 | 说明 |
+|---|---|---|
+| 员工聊天页 | `python -m prep_assistant.main serve` → `http://127.0.0.1:8000/` | SSE 流式问答，带引用来源与打字机效果 |
+| 管理后台 | `http://127.0.0.1:8000/admin/login` | 管理员密码见 `data/.admin_credentials`（首启随机生成，控制台也会打印） |
+| 智能体接口 | `POST /api/agent/ask`（SSE） | 事件序 `meta → round* → tool* → draft_preview? → answer* → done` |
+| 离线演示 | `python examples/agent_demo.py` | **不需要 API 密钥**，逐条演示十道闸如何拦人 |
 
 ```bash
-# 查看命令行入口与当前规格摘要
-python -m prep_assistant.main --help
-
-# 起服务：聊天页 http://127.0.0.1:8000/ ，管理后台 /admin/login
+# 起服务
 python -m prep_assistant.main serve
 
-# 智能体工具层演示（不需要 API 密钥，直接看四道闸怎么拦人）
+# 看一眼四层闸门（离线，约 2 秒）
 python examples/agent_demo.py
 
 # 跑测试
 pytest -q
 ```
+
+### 3. 配置
+
+| 文件 | 管什么 | 注意 |
+|---|---|---|
+| `config/prototype.yaml` | LLM 供应商与超时、限流窗口、上传大小、历史轮数 | 密钥只读环境变量，不写进此文件 |
+| `config/dict.yaml` | 品类字典：标准份分母、基准出成率、加工时长 | **只增不改**，改口径必须新增版本号与生效日期 |
+| `config/default.yaml` | 审计保留期、回写白名单、效期判定参数 | `writeback.enabled` 默认 `false` |
+| 环境变量 | `DEEPSEEK_API_KEY`（或任意 OpenAI 兼容供应商） | 未设置时问答返回 503，工具与演示不受影响 |
+
+### 4. 常见问题
+
+| 现象 | 原因与处理 |
+|---|---|
+| 提问返回 `LLM_UNAVAILABLE` 503 | 未配置 API 密钥；离线验证可先跑 `examples/agent_demo.py` |
+| 后台登录不进去 | 密码在 `data/.admin_credentials`；文件丢失则删除后重启重新播种（本期无改密功能） |
+| 批次查不到（`NOT_FOUND`） | 演示批次需 `agent.seed_demo_batches: true`；生产必须关闭并扫码录入真实批次 |
+| 回答里数字与工具返回不一致 | 属缺陷，服务端本应以 `PROVENANCE_MISMATCH` 拒绝建单，请提 issue |
 
 ## 文档
 
