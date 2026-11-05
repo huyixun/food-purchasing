@@ -207,27 +207,63 @@ pytest -q
 
 | 文档 | 内容 |
 |---|---|
-| `docs/备料助手-一页纸需求清单.md` | 需求基线（v1.0，11 项决策冻结） |
-| `docs/decision-log.md` | 决策记录与依据（B1–B6） |
-| `docs/design.md` | 架构分层与关键约束 |
-| `docs/agent-tooling-design.md` | 智能体工具层：8 个工具、凭证链、系统提示词铁律 |
-| `docs/api.md` | 接口说明（阶段 2/3/4 已实现） |
-| `docs/discovery-report.md` | 业务发现报告（36 条访谈事实） |
-| `docs/prd-agent-assistant-capability-a.md` | 早期 PRD（**仅作参考**，部分结论已被决策推翻） |
+| [`docs/备料助手-一页纸需求清单.md`](docs/备料助手-一页纸需求清单.md) | 需求基线（v1.0，11 项决策冻结） |
+| [`docs/decision-log.md`](docs/decision-log.md) | 决策记录与依据（B1–B6），含"为什么不做 A 而做 B" |
+| [`docs/architecture.md`](docs/architecture.md) | 架构分层、数据表设计与选型理由 |
+| [`docs/design.md`](docs/design.md) | 领域模型与关键约束 |
+| [`docs/agent-tooling-design.md`](docs/agent-tooling-design.md) | 工具层设计：8 个工具、凭证链、提示词铁律 |
+| [`docs/agent-loop.md`](docs/agent-loop.md) | 编排循环规格 + 3 条典型对话轨迹 |
+| [`docs/api.md`](docs/api.md) | 接口契约与错误码表 |
+| [`docs/discovery-report.md`](docs/discovery-report.md) | 业务发现报告（36 条访谈事实） |
+| [`docs/go-live-checklist.md`](docs/go-live-checklist.md) | 上线前 25 项检查与 7 个阻断项 |
+| [`docs/demo-script.md`](docs/demo-script.md) | 12 分钟演示脚本（含离线版与翻车预案） |
+| [`docs/prd-agent-assistant-capability-a.md`](docs/prd-agent-assistant-capability-a.md) | 早期 PRD（**仅作参考**，部分结论已被决策推翻） |
 
 ## 目录结构
 
+源码约 4,500 行，17 个 HTTP 接口，14 张数据表。
+
 ```
 .
-├── src/prep_assistant/   # 源码：main 入口、core 业务、utils 工具
-├── tests/                # 测试，结构与 src 对应
-├── docs/                 # 需求、设计、接口、访谈材料
-├── examples/             # 可运行示例
-├── scripts/              # 构建与部署脚本
-├── config/               # 非机密默认配置
-├── data/                 # 样例数据（小文件）
-└── .github/              # CI、Issue / PR 模板
+├── src/prep_assistant/
+│   ├── main.py            # CLI 入口：info 规格自检 / serve 起服务
+│   ├── api/               # FastAPI 装配与统一错误契约
+│   │   └── routes/        # chat（问答）/ agent（智能体）/ auth / admin
+│   ├── agents/
+│   │   ├── harness.py     # 五轮编排、建草案强制中断、确认/拒绝
+│   │   ├── tools/         # 8 个工具、凭证链、结构化错误码
+│   │   ├── llm/           # 网关（可换供应商）、提示词与不可编辑铁律
+│   │   ├── rag/           # 切片 / 索引 / 混合检索
+│   │   └── moderation.py  # 确定性违规规则初筛
+│   ├── core/              # 确定性内核：换算、效期、字典（其余为规格）
+│   ├── infra/             # SQLite、鉴权、配置、台账存储
+│   └── utils/             # 时钟、ID（双时态基础）
+├── tests/                 # 62 条测试，结构与 src 对应
+├── eval/cases.json        # 30 条评测用例
+├── examples/              # 可运行示例（含离线闸门演示）
+├── scripts/               # 构建 / 部署 / 演示自检
+├── config/                # 非机密配置与品类字典
+├── data/                  # SQLite 库与知识库文件
+├── docs/                  # 需求、决策、架构、接口、上线与演示材料
+├── static/ templates/     # 员工聊天页、后台 SSR 模板
+└── .github/               # CI、Issue / PR 模板
 ```
+
+## 路线图
+
+| 优先级 | 事项 | 说明 |
+|---|---|---|
+| P0 | 确认卡片页 `/prep/drafts/{id}` | 接口与闸门已就绪，缺页面；不补则草案只能经接口确认 |
+| P0 | 员工登录态 | 目前 `X-Employee-No` 由请求头传入，可伪造，审计归属不可信 |
+| P1 | `eval/run_eval.py` | 让 30 条评测集一条命令出 pass/fail 报表 |
+| P1 | 回写 outbox | `core/writeback.py` 仍是规格；仅执行结果字段可写，四类字段永久拒写 |
+| P2 | T3 办公动作页面 | 交接接手、批次隔离等人工动作的界面入口 |
+| P2 | 管理员改密 | 本期无改密功能，初始密码只能靠文件保管 |
+| P3 | PDF 扫描件 OCR、迁 PostgreSQL + pgvector | 当前仅支持文字版 PDF；向量检索为本地 FAISS |
+
+## 贡献
+
+见 [`CONTRIBUTING.md`](CONTRIBUTING.md)：分支命名、提交信息格式（`feat:` / `fix:` / `docs:` / `test:`）、PR 检查项。CI 会跑 `ruff check .` 与 `pytest -q`，两者全绿才合并。
 
 ## 许可证
 
