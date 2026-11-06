@@ -72,15 +72,29 @@ def _print_info(args: argparse.Namespace) -> int:
 
 
 def _serve(args: argparse.Namespace) -> int:
-    """启动问答服务。uvicorn 延迟导入：info 模式无需安装 Web 依赖。"""
+    """启动问答服务。uvicorn 延迟导入：info 模式无需安装 Web 依赖。
+
+    部署约定：平台注入 PORT 环境变量时优先生效，并绑定 0.0.0.0；
+    本地开发仍可用 --host / --port 或默认值 127.0.0.1:8000。
+    """
+    import os
+
     import uvicorn
 
     from prep_assistant.api.app import app  # noqa: F401 应用装配（含建表与种子账号）
 
-    print(f"prep-assistant {__version__} · 员工问答入口 http://{args.host}:{args.port}/")
-    print(f"prep-assistant {__version__} · 管理后台     http://{args.host}:{args.port}/admin/")
+    env_port = os.environ.get("PORT", "").strip()
+    if env_port.isdigit():
+        host = os.environ.get("HOST", "0.0.0.0")
+        port = int(env_port)
+    else:
+        host = args.host
+        port = args.port
+
+    print(f"prep-assistant {__version__} · 员工问答入口 http://{host}:{port}/")
+    print(f"prep-assistant {__version__} · 管理后台     http://{host}:{port}/admin/")
     print("（首次启动已生成 admin 随机密码，见控制台输出或 data/.admin_credentials）")
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    uvicorn.run(app, host=host, port=port, log_level="info")
     return 0
 
 
