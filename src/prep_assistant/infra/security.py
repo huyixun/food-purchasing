@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -120,24 +121,40 @@ def require_admin(request) -> dict:
 def seed_users(conn: sqlite3.Connection) -> str | None:
     """首次启动播种账号（幂等）：admin + 员工演示账号 demo。
 
-    返回 admin 初始密码（仅首次生成时非 None，供入口打印）；已存在则返回 None。
+    admin 密码来源优先级：
+    1. 环境变量 ADMIN_FIXED_PASSWORD（部署/演示环境固定密码；
+       每次启动校验，与库中不一致即重置——保证线上密码可控）
+    2. 未设置时随机生成（打印控制台并写入 data/.admin_credentials）
+
+    返回本次实际生效的 admin 密码（无变化时返回 None）。
     """
-    if get_user(conn, "admin") is not None:
+    fixed = os.environ.get("ADMIN_FIXED_PASSWORD", "").strip()
+    admin = get_user(conn, "admin")
+    if admin is None:
+        admin_password = fixed or secrets.token_urlsafe(12)
+        create_user(conn, "admin", hash_password(admin_password), "admin")
+        # 员工演示账号：与聊天页缺省身份 demo 对齐，密码就用 demo（仅原型环境）
+        if get_user(conn, "demo") is None:
+            create_user(conn, "demo", hash_password("demo"), "employee")
+    elif fixed and not verify_password(fixed, admin["password_hash"]):
+        # 固定密码环境变量已设置且与库中不一致：以环境变量为准重置
+        admin_password = fixed
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE employee_no = 'admin'",
+            (hash_password(fixed),),
+        )
+        conn.commit()
+    else:
         return None
 
-    admin_password = secrets.token_urlsafe(12)
-    create_user(conn, "admin", hash_password(admin_password), "admin")
-    # 员工演示账号：与聊天页缺省身份 demo 对齐，密码就用 demo（仅原型环境）
-    if get_user(conn, "demo") is None:
-        create_user(conn, "demo", hash_password("demo"), "employee")
-
-    # 随机密码既打印（前台可见）也落盘（后台启动也能拿到），两处都在提示修改
+    # 密码既打印（前台可见）也落盘（后台启动也能拿到）
     cred_path = REPO_ROOT / "data" / ".admin_credentials"
     cred_path.parent.mkdir(parents=True, exist_ok=True)
+    source = "固定密码（来自环境变量 ADMIN_FIXED_PASSWORD）" if fixed else "随机生成，请尽快修改"
     cred_path.write_text(
-        f"工号: admin\n初始密码: {admin_password}\n"
-        f"（生成于 {datetime.now().isoformat(timespec='seconds')}，请尽快修改——本期未提供改密功能）\n",
+        f"工号: admin\n密码: {admin_password}\n"
+        f"（{source}；写入于 {datetime.now().isoformat(timespec='seconds')}）\n",
         encoding="utf-8",
     )
-    print(f"[种子账号] admin 初始密码: {admin_password}（已写入 {cred_path}，请尽快修改）")
+    print(f"[种子账号] admin 密码（{source}）: {admin_password}")
     return admin_password
